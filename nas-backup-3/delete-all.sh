@@ -8,9 +8,20 @@ function deleteArchive(){
 	fi
 	echo "Deleting all : file=$file, acct=$acct, region=$region, vault=$vault"
 	archive_ids=$(cat $file)
+	i=0
 	for archive_id in ${archive_ids}; do
-		echo "Deleting Archive: ${archive_id}"
+		if [[ $i -lt $offset ]]; then
+			echo "skipping $archive_id"
+			i=$((i+1))
+			continue;
+		fi
+		echo "[$file, $i] del ${archive_id}"
 		aws --profile=glacier glacier delete-archive --archive-id=${archive_id} --vault-name ${vault} --account-id ${acct} --region ${region}
+		# notify every 500
+		i=$((i+1))
+		if [[ $((i % 500)) -eq 0 ]]; then
+			notifyDone "file $file done $i"
+		fi
 	done
 }
 
@@ -20,11 +31,12 @@ function notifyDone(){
 }
 
 
-if [[ -z ${acct} ]] || [[ -z ${region} ]] || [[ -z ${vault} ]] ; then
+if [[ -z ${acct} ]] || [[ -z ${region} ]] || [[ -z ${vault} ]] || [[ -z ${offset} ]]  ; then
 	echo "Please set the following environment variables: "
 	echo "acct"
 	echo "region"
 	echo "vault"
+	echo "offset"
 	exit 1
 fi
 
